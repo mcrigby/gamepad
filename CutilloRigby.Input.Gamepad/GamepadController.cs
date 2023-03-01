@@ -65,20 +65,12 @@ public partial class GamepadController : IGamepadController
         if (message.IsButton())
         {
             if (!Buttons.ContainsKey(key))
-                Buttons.Add(key, new GamepadInput<bool> {
-                    Name = _mapping.GetButtonName(key),
-                    Enabled = _mapping.GetButtonEnabled(key),
-                    Value = _mapping.GetButtonDefaultValue(key)
-                });
+                Buttons.Add(key, key.ToButtonInput(_mapping));
         }
         else if (message.IsAxis())
         {
             if (!Axes.ContainsKey(key))
-                Axes.Add(key, new GamepadInput<short> {
-                    Name = _mapping.GetAxisName(key),
-                    Enabled = _mapping.GetAxisEnabled(key),
-                    Value = _mapping.GetAxisDefaultValue(key)
-                });
+                Axes.Add(key, key.ToAxisInput(_mapping));
         }
     }
 
@@ -95,11 +87,7 @@ public partial class GamepadController : IGamepadController
             if (button.Enabled && oldValue != newValue)
             {
                 button.Value = newValue;
-                ButtonChanged?.Invoke(this, new GamepadInputEventArgs<bool> { 
-                    Address = address, 
-                    Name = button.Name, 
-                    Value = button.Value 
-                });
+                ButtonChanged?.Invoke(this, button.ToEventArgs(address));
             }
 
             Buttons[address] = button;
@@ -113,11 +101,7 @@ public partial class GamepadController : IGamepadController
             if (axis.Enabled && oldValue != newValue)
             {
                 axis.Value = newValue;
-                AxisChanged?.Invoke(this, new GamepadInputEventArgs<short> { 
-                    Address = address, 
-                    Name = axis.Name, 
-                    Value = axis.Value 
-                });
+                AxisChanged?.Invoke(this, axis.ToEventArgs(address));
             }
 
             Axes[address] = axis;
