@@ -3,43 +3,47 @@
 public partial class GamepadController : IGamepadController
 {
     private readonly string _deviceFile;
-    private readonly CancellationTokenSource _cancellationTokenSource;
+    private readonly IGamepadMapping _mapping;
 
-    public Dictionary<byte, bool> Buttons = new Dictionary<byte, bool>();
-    public Dictionary<byte, short> Axis = new Dictionary<byte, short>();
+    public IDictionary<byte, GamepadInput<short>> Axes { get; init; }
+    public IDictionary<byte, GamepadInput<bool>> Buttons { get; init; }
 
     /// <summary>
     /// EventHandler to allow the notification of Button changes.
     /// </summary>
-    public event EventHandler<ButtonEventArgs> ButtonChanged = delegate { };
+    public event EventHandler<GamepadInputEventArgs<bool>> ButtonChanged = delegate { };
 
     /// <summary>
     /// EventHandler to allow the notification of Axis changes.
     /// </summary>
-    public event EventHandler<AxisEventArgs> AxisChanged = delegate { };
+    public event EventHandler<GamepadInputEventArgs<short>> AxisChanged = delegate { };
 
-    public GamepadController(string deviceFile = "/dev/input/js0")
+    public GamepadController(string deviceFile, IGamepadMapping mapping)
     {
-        if (!File.Exists(deviceFile))
-        {
-            throw new ArgumentException(nameof(deviceFile), $"The device {deviceFile} does not exist");
-        }
-
         _deviceFile = deviceFile;
+        _mapping = mapping;
 
-        // Create the Task that will constantly read the device file, process its bytes and fire events accordingly
-        _cancellationTokenSource = new CancellationTokenSource();
-
-        Task.Factory.StartNew(() => ProcessMessages(_cancellationTokenSource.Token));
+        Axes = new Dictionary<byte, GamepadInput<short>>();
+        Buttons = new Dictionary<byte, GamepadInput<bool>>();
     }
 
-    private void ProcessMessages(CancellationToken token)
+    public void Start(CancellationToken cancellationToken)
+    {
+        if (!File.Exists(_deviceFile))
+        {
+            throw new ArgumentException(nameof(_deviceFile), $"The device {_deviceFile} does not exist");
+        }
+
+        Task.Factory.StartNew(() => ProcessMessages(cancellationToken));
+    }
+
+    private void ProcessMessages(CancellationToken cancellationToken)
     {
         using (FileStream fs = new FileStream(_deviceFile, FileMode.Open))
         {
             byte[] message = new byte[8];
 
-            while (!token.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 // Read chunks of 8 bytes at a time.
                 fs.Read(message, 0, 8);
@@ -56,54 +60,67 @@ public partial class GamepadController : IGamepadController
 
     private void ProcessConfiguration(byte[] message)
     {
+        byte key = message.GetAddress();
+
         if (message.IsButton())
         {
-            byte key = message.GetAddress();
             if (!Buttons.ContainsKey(key))
-            {
-                Buttons.Add(key, false);
-                return;
-            }
+                Buttons.Add(key, new GamepadInput<bool> { 
+                    Name = _mapping.GetButtonName(key), 
+                    Value = _mapping.GetButtonDefaultValue(key) 
+                });
         }
         else if (message.IsAxis())
         {
-            byte key = message.GetAddress();
-            if (!Axis.ContainsKey(key))
-            {
-                Axis.Add(key, 0);
-                return;
-            }
+            if (!Axes.ContainsKey(key))
+                Axes.Add(key, new GamepadInput<short> { 
+                    Name = _mapping.GetAxisName(key), 
+                    Value = _mapping.GetAxisDefaultValue(key) 
+                });
         }
     }
 
     private void ProcessValues(byte[] message)
     {
+        byte address = message.GetAddress();
+
         if (message.IsButton())
         {
-            var oldValue = Buttons[message.GetAddress()];
+            var button = Buttons[address];
+            var oldValue = button.Value;
             var newValue = message.IsButtonPressed();
 
             if (oldValue != newValue)
             {
-                Buttons[message.GetAddress()] = message.IsButtonPressed();
-                ButtonChanged?.Invoke(this, new ButtonEventArgs { Button = message.GetAddress(), Pressed = newValue });
+                button.Value = newValue;
+                ButtonChanged?.Invoke(this, new GamepadInputEventArgs<bool> { 
+                    Address = address, 
+                    Name = button.Name, 
+                    Value = button.Value 
+                });
             }
+
+            Buttons[address] = button;
         }
         else if (message.IsAxis())
         {
-            var oldValue = Axis[message.GetAddress()];
+            var axis = Axes[address];
+            var oldValue = axis.Value;
             var newValue = message.GetAxisValue();
 
             if (oldValue != newValue)
             {
-                Axis[message.GetAddress()] = message.GetAxisValue();
-                AxisChanged?.Invoke(this, new AxisEventArgs { Axis = message.GetAddress(), Value = newValue });
+                axis.Value = newValue;
+                AxisChanged?.Invoke(this, new GamepadInputEventArgs<short> { 
+                    Address = address, 
+                    Name = axis.Name, 
+                    Value = axis.Value 
+                });
             }
+
+            Axes[address] = axis;
         }
     }
 
-    public void Dispose()
-    {
-        _cancellationTokenSource.Cancel();
-    }
+    public void Dispose() { }
 }

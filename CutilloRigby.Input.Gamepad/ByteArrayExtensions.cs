@@ -14,7 +14,7 @@ internal static class ByteArrayExtensions
 
     public static bool IsAxis(this byte[] message)
     {
-        return IsFlagSet(message[6], 0x02); // 0x01 in byte 6 means it is a Axis
+        return IsFlagSet(message[6], 0x02); // 0x02 in byte 6 means it is a Axis
     }
 
     public static bool IsButtonPressed(this byte[] message)

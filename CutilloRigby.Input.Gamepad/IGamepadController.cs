@@ -2,6 +2,11 @@
 
 public interface IGamepadController : IDisposable
 {
-    event EventHandler<ButtonEventArgs> ButtonChanged;
-    event EventHandler<AxisEventArgs> AxisChanged;
+    IDictionary<byte, GamepadInput<short>> Axes { get; }
+    IDictionary<byte, GamepadInput<bool>> Buttons { get; }
+
+    event EventHandler<GamepadInputEventArgs<bool>> ButtonChanged;
+    event EventHandler<GamepadInputEventArgs<short>> AxisChanged;
+
+    void Start(CancellationToken cancellationToken);
 }
