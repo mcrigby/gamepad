@@ -7,4 +7,7 @@ public interface IGamepadMapping
 
     short GetAxisDefaultValue(byte address);
     bool GetButtonDefaultValue(byte address);
+
+    bool GetAxisEnabled(byte address);
+    bool GetButtonEnabled(byte address);
 }

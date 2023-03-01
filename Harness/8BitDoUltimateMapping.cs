@@ -14,6 +14,16 @@ internal sealed class _8BitDoUltimateMapping : IGamepadMapping
         };
     }
 
+    public bool GetAxisEnabled(byte address)
+    {
+        return address switch
+        {
+            1 => false,
+            3 => false,
+            _ => true,
+        };
+    }
+
     public string GetAxisName(byte address)
     {
         return address switch
@@ -35,6 +45,16 @@ internal sealed class _8BitDoUltimateMapping : IGamepadMapping
         return address switch
         {
             _ => false,
+        };
+    }
+
+    public bool GetButtonEnabled(byte address)
+    {
+        return address switch
+        {
+            19 => false,
+            23 => false,
+            _ => true,
         };
     }
 

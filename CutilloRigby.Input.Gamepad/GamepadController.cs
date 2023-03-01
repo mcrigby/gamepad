@@ -65,17 +65,19 @@ public partial class GamepadController : IGamepadController
         if (message.IsButton())
         {
             if (!Buttons.ContainsKey(key))
-                Buttons.Add(key, new GamepadInput<bool> { 
-                    Name = _mapping.GetButtonName(key), 
-                    Value = _mapping.GetButtonDefaultValue(key) 
+                Buttons.Add(key, new GamepadInput<bool> {
+                    Name = _mapping.GetButtonName(key),
+                    Enabled = _mapping.GetButtonEnabled(key),
+                    Value = _mapping.GetButtonDefaultValue(key)
                 });
         }
         else if (message.IsAxis())
         {
             if (!Axes.ContainsKey(key))
-                Axes.Add(key, new GamepadInput<short> { 
-                    Name = _mapping.GetAxisName(key), 
-                    Value = _mapping.GetAxisDefaultValue(key) 
+                Axes.Add(key, new GamepadInput<short> {
+                    Name = _mapping.GetAxisName(key),
+                    Enabled = _mapping.GetAxisEnabled(key),
+                    Value = _mapping.GetAxisDefaultValue(key)
                 });
         }
     }
@@ -90,7 +92,7 @@ public partial class GamepadController : IGamepadController
             var oldValue = button.Value;
             var newValue = message.IsButtonPressed();
 
-            if (oldValue != newValue)
+            if (button.Enabled && oldValue != newValue)
             {
                 button.Value = newValue;
                 ButtonChanged?.Invoke(this, new GamepadInputEventArgs<bool> { 
@@ -108,7 +110,7 @@ public partial class GamepadController : IGamepadController
             var oldValue = axis.Value;
             var newValue = message.GetAxisValue();
 
-            if (oldValue != newValue)
+            if (axis.Enabled && oldValue != newValue)
             {
                 axis.Value = newValue;
                 AxisChanged?.Invoke(this, new GamepadInputEventArgs<short> { 
