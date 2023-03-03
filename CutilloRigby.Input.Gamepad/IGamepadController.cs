@@ -2,6 +2,8 @@
 
 public interface IGamepadController : IDisposable
 {
+    bool IsAvailable { get; }
+    
     IDictionary<byte, GamepadInput<short>> Axes { get; }
     IDictionary<byte, GamepadInput<bool>> Buttons { get; }
 

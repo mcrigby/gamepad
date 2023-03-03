@@ -1,4 +1,5 @@
 ﻿using CutilloRigby.Input.Gamepad;
+using Microsoft.Extensions.Logging;
 
 namespace Harness;
 
@@ -6,13 +7,18 @@ class Program
 {
     static void Main(string[] args)
     {
+        var _loggerFactory = LoggerFactory.Create(builder => 
+            builder.AddConsole()
+        );
+
         var cancellationToken = new CancellationTokenSource();
         Console.CancelKeyPress += delegate {
             cancellationToken.Cancel();
         };
 
         // You should provide the gamepad file you want to connect to. /dev/input/js0 is the default
-        using (IGamepadController gamepad = new GamepadController("/dev/input/js0", new _8BitDoUltimateMapping()))
+        using (IGamepadController gamepad = new GamepadController("/dev/input/js0", new _8BitDoUltimateMapping(), 
+            _loggerFactory.CreateLogger<GamepadController>()))
         {
             gamepad.Start(cancellationToken.Token);
             

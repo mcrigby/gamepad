@@ -1,27 +1,27 @@
-﻿namespace CutilloRigby.Input.Gamepad;
+﻿using Microsoft.Extensions.Logging;
+
+namespace CutilloRigby.Input.Gamepad;
 
 public partial class GamepadController : IGamepadController
 {
     private readonly string _deviceFile;
     private readonly IGamepadMapping _mapping;
+    private readonly ILogger _logger;
+
+    public bool IsAvailable => File.Exists(_deviceFile);
 
     public IDictionary<byte, GamepadInput<short>> Axes { get; init; }
     public IDictionary<byte, GamepadInput<bool>> Buttons { get; init; }
 
-    /// <summary>
-    /// EventHandler to allow the notification of Button changes.
-    /// </summary>
     public event EventHandler<GamepadInputEventArgs<bool>> ButtonChanged = delegate { };
 
-    /// <summary>
-    /// EventHandler to allow the notification of Axis changes.
-    /// </summary>
     public event EventHandler<GamepadInputEventArgs<short>> AxisChanged = delegate { };
 
-    public GamepadController(string deviceFile, IGamepadMapping mapping)
+    public GamepadController(string deviceFile, IGamepadMapping mapping, ILogger<GamepadController> logger)
     {
         _deviceFile = deviceFile;
         _mapping = mapping;
+        _logger = logger;
 
         Axes = new Dictionary<byte, GamepadInput<short>>();
         Buttons = new Dictionary<byte, GamepadInput<bool>>();
@@ -29,31 +29,44 @@ public partial class GamepadController : IGamepadController
 
     public void Start(CancellationToken cancellationToken)
     {
-        if (!File.Exists(_deviceFile))
-        {
-            throw new ArgumentException(nameof(_deviceFile), $"The device {_deviceFile} does not exist");
-        }
-
         Task.Factory.StartNew(() => ProcessMessages(cancellationToken));
     }
 
-    private void ProcessMessages(CancellationToken cancellationToken)
+    private async Task ProcessMessages(CancellationToken cancellationToken)
     {
-        using (FileStream fs = new FileStream(_deviceFile, FileMode.Open))
+        while (!cancellationToken.IsCancellationRequested)
         {
-            byte[] message = new byte[8];
-
-            while (!cancellationToken.IsCancellationRequested)
+            try
             {
-                // Read chunks of 8 bytes at a time.
-                fs.Read(message, 0, 8);
-
-                if (message.HasConfiguration())
+                while (!IsAvailable && !cancellationToken.IsCancellationRequested)
                 {
-                    ProcessConfiguration(message);
+                    if (_logger.IsEnabled(LogLevel.Warning))
+                        _logger.LogWarning("Waiting for device at {deviceFile}.", _deviceFile);
+                    await Task.Delay(5000);
                 }
 
-                ProcessValues(message);
+                using (FileStream fs = new FileStream(_deviceFile, FileMode.Open))
+                {
+                    byte[] message = new byte[8];
+
+                    while (!cancellationToken.IsCancellationRequested)
+                    {
+                        // Read chunks of 8 bytes at a time.
+                        fs.Read(message, 0, 8);
+
+                        if (message.HasConfiguration())
+                        {
+                            ProcessConfiguration(message);
+                        }
+
+                        ProcessValues(message);
+                    }
+                }
+            }
+            catch (IOException)
+            {
+                if (_logger.IsEnabled(LogLevel.Error))
+                    _logger.LogError("Device at {deviceFile} disconnected.", _deviceFile);
             }
         }
     }
@@ -65,12 +78,26 @@ public partial class GamepadController : IGamepadController
         if (message.IsButton())
         {
             if (!Buttons.ContainsKey(key))
-                Buttons.Add(key, key.ToButtonInput(_mapping));
+            {
+                var button = key.ToButtonInput(_mapping);
+                Buttons.Add(key, button);
+
+                if(_logger.IsEnabled(LogLevel.Information))
+                    _logger.LogInformation("Adding Button {key} with Name {name}. Value = {value}.", 
+                        key, button.Name, button.Value);
+            }
         }
         else if (message.IsAxis())
         {
             if (!Axes.ContainsKey(key))
-                Axes.Add(key, key.ToAxisInput(_mapping));
+            {
+                var axis = key.ToAxisInput(_mapping);
+                Axes.Add(key, axis);
+
+                if(_logger.IsEnabled(LogLevel.Information))
+                    _logger.LogInformation("Adding Axis {key} with Name {name}. Value = {value}.", 
+                        key, axis.Name, axis.Value);
+            }
         }
     }
 
@@ -86,6 +113,9 @@ public partial class GamepadController : IGamepadController
 
             if (button.Enabled && oldValue != newValue)
             {
+                if(_logger.IsEnabled(LogLevel.Information))
+                    _logger.LogInformation("Button {name} value changed from {oldValue} to {newValue}.", button.Name, oldValue, newValue);
+
                 button.Value = newValue;
                 ButtonChanged?.Invoke(this, button.ToEventArgs(address));
             }
@@ -100,6 +130,9 @@ public partial class GamepadController : IGamepadController
 
             if (axis.Enabled && oldValue != newValue)
             {
+                if(_logger.IsEnabled(LogLevel.Information))
+                    _logger.LogInformation("Axis {name} value changed from {oldValue} to {newValue}.", axis.Name, oldValue, newValue);
+
                 axis.Value = newValue;
                 AxisChanged?.Invoke(this, axis.ToEventArgs(address));
             }
@@ -108,5 +141,9 @@ public partial class GamepadController : IGamepadController
         }
     }
 
-    public void Dispose() { }
+    public void Dispose() 
+    { 
+        if(_logger.IsEnabled(LogLevel.Information))
+            _logger.LogInformation("Game Controller Disposed");
+    }
 }
