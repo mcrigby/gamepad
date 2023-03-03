@@ -21,19 +21,7 @@ class Program
             )
             .ConfigureServices(services =>
             {
-                services.AddSingleton<GamepadController>(provider => 
-                {
-                    var gamepadLogger = provider.GetRequiredService<ILogger<GamepadController>>();
-                    // You should provide the gamepad file you want to connect to. /dev/input/js0 is the default
-                    return new GamepadController("/dev/input/js0", new _8BitDoUltimateMapping(), 
-                        gamepadLogger);
-                });
-                services.AddSingleton<IGamepadController, GamepadController>(provider => 
-                    provider.GetRequiredService<GamepadController>()
-                );
-                services.AddHostedService<GamepadController>(provider =>
-                    provider.GetRequiredService<GamepadController>()
-                );
+                services.AddGamepadController("/dev/input/js0", new _8BitDoUltimateMapping());
             })
             .Build();
 
@@ -53,7 +41,7 @@ class Program
             Console.WriteLine($"Axis {e.Name} ({e.Address}) Changed: {e.Value}");
         };
 
-        await host.StartAsync();            
+        await host.StartAsync(lifetime.ApplicationStopping);
         Console.WriteLine("Start pushing the buttons/axis of your gamepad/joystick to see the output");
     }
 }
