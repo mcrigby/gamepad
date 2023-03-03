@@ -40,7 +40,7 @@ class Program
         var gamepad = host.Services.GetRequiredService<GamepadController>();
 
         var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
-        lifetime.ApplicationStopping.Register(async () => await gamepad.StopAsync());
+        lifetime.ApplicationStopping.Register(async () => await host.StopAsync());
 
         // Configure this if you want to get events when the state of a button changes
         gamepad.ButtonChanged += (object? sender, GamepadInputEventArgs<bool> e) =>
@@ -53,9 +53,7 @@ class Program
             Console.WriteLine($"Axis {e.Name} ({e.Address}) Changed: {e.Value}");
         };
 
-        host.RunAsync();            
+        await host.StartAsync();            
         Console.WriteLine("Start pushing the buttons/axis of your gamepad/joystick to see the output");
-        Console.ReadLine();
-        // Remember to Dispose the GamepadController, so it can finish the Task that listens for changes in the gamepad
     }
 }
