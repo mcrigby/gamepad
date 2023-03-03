@@ -1,8 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace CutilloRigby.Input.Gamepad;
 
-public partial class GamepadController : IGamepadController
+public partial class GamepadController : BackgroundService, IGamepadController
 {
     private readonly string _deviceFile;
     private readonly IGamepadMapping _mapping;
@@ -27,12 +28,17 @@ public partial class GamepadController : IGamepadController
         Buttons = new Dictionary<byte, GamepadInput<bool>>();
     }
 
-    public void Start(CancellationToken cancellationToken)
+    public override Task StartAsync(CancellationToken cancellationToken = default)
     {
-        Task.Factory.StartNew(() => ProcessMessages(cancellationToken));
+        return base.StartAsync(cancellationToken);
     }
 
-    private async Task ProcessMessages(CancellationToken cancellationToken)
+    public override Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        return base.StopAsync(cancellationToken);
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken cancellationToken = default)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -139,11 +145,5 @@ public partial class GamepadController : IGamepadController
 
             Axes[address] = axis;
         }
-    }
-
-    public void Dispose() 
-    { 
-        if(_logger.IsEnabled(LogLevel.Information))
-            _logger.LogInformation("Game Controller Disposed");
     }
 }
