@@ -28,14 +28,9 @@ public partial class GamepadController : BackgroundService, IGamepadController
         Buttons = new Dictionary<byte, GamepadInput<bool>>();
     }
 
-    public override Task StartAsync(CancellationToken cancellationToken = default)
-    {
-        return base.StartAsync(cancellationToken);
-    }
-
     public override Task StopAsync(CancellationToken cancellationToken = default)
     {
-        return base.StopAsync(cancellationToken);
+        return Task.CompletedTask;
     }
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken = default)
@@ -123,10 +118,9 @@ public partial class GamepadController : BackgroundService, IGamepadController
                     _logger.LogInformation("Button {name} value changed from {oldValue} to {newValue}.", button.Name, oldValue, newValue);
 
                 button.Value = newValue;
+                Buttons[address] = button;
                 ButtonChanged?.Invoke(this, button.ToEventArgs(address));
             }
-
-            Buttons[address] = button;
         }
         else if (message.IsAxis())
         {
@@ -140,10 +134,9 @@ public partial class GamepadController : BackgroundService, IGamepadController
                     _logger.LogInformation("Axis {name} value changed from {oldValue} to {newValue}.", axis.Name, oldValue, newValue);
 
                 axis.Value = newValue;
+                Axes[address] = axis;
                 AxisChanged?.Invoke(this, axis.ToEventArgs(address));
             }
-
-            Axes[address] = axis;
         }
     }
 }
