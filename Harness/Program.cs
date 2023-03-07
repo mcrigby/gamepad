@@ -63,7 +63,6 @@ class Program
         };
 
         await host.StartAsync(lifetime.ApplicationStopping);
-        Console.WriteLine("Start pushing the buttons/axis of your gamepad/joystick to see the output");
         await host.WaitForShutdownAsync(lifetime.ApplicationStopped);
     }
 
