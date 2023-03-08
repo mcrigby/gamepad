@@ -116,6 +116,8 @@ class Program
         };
 
         rcCarHat.SetRedLed(!gamepad.IsAvailable);
+        rcCarHat.SetDrive(0);
+        rcCarHat.SetSteering(0);
         
         await host.StartAsync(lifetime.ApplicationStopping);
         await host.WaitForShutdownAsync(lifetime.ApplicationStopped);
