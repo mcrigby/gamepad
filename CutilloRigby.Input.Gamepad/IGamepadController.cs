@@ -9,4 +9,5 @@ public interface IGamepadController : IDisposable
 
     event EventHandler<GamepadInputEventArgs<bool>> ButtonChanged;
     event EventHandler<GamepadInputEventArgs<short>> AxisChanged;
+    event EventHandler<GamepadAvailableEventArgs> AvailableChanged;
 }

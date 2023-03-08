@@ -55,6 +55,7 @@ internal sealed class _8BitDoUltimateMapping : IGamepadMapping
     {
         return address switch
         {
+            3 => true,
             19 => false,
             23 => false,
             _ => false,

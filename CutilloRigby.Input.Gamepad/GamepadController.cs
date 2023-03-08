@@ -18,6 +18,8 @@ public partial class GamepadController : BackgroundService, IGamepadController
 
     public event EventHandler<GamepadInputEventArgs<short>> AxisChanged = delegate { };
 
+    public event EventHandler<GamepadAvailableEventArgs> AvailableChanged = delegate { };
+
     public GamepadController(string deviceFile, IGamepadMapping mapping, ILogger<GamepadController> logger)
     {
         _deviceFile = deviceFile;
@@ -44,6 +46,8 @@ public partial class GamepadController : BackgroundService, IGamepadController
                     if (_logger.IsEnabled(LogLevel.Warning))
                         _logger.LogWarning("Waiting for device at {deviceFile}.", _deviceFile);
                     await Task.Delay(5000);
+                    if (IsAvailable)
+                        AvailableChanged?.Invoke(this, GamepadAvailableEventArgs.Yes);
                 }
 
                 using (FileStream fs = new FileStream(_deviceFile, FileMode.Open))
@@ -68,6 +72,8 @@ public partial class GamepadController : BackgroundService, IGamepadController
             {
                 if (_logger.IsEnabled(LogLevel.Error))
                     _logger.LogError("Device at {deviceFile} disconnected.", _deviceFile);
+                
+                AvailableChanged?.Invoke(this, GamepadAvailableEventArgs.No);
             }
         }
     }
