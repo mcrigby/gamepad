@@ -77,6 +77,8 @@ internal sealed class _8BitDoUltimateMapping : IGamepadMapping
             10 => "-",
             11 => "+",
             12 => "Home",
+            13 => "Left Stick",
+            14 => "Right Stick",
             19 => "Right Paddle",
             23 => "Left Paddle",
             _ => "Unknown",
