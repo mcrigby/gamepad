@@ -3,31 +3,15 @@ using Microsoft.Extensions.Logging;
 
 namespace CutilloRigby.Input.Gamepad;
 
-public partial class GamepadController : BackgroundService, IGamepadController
+public partial class GamepadController : BackgroundService
 {
-    private readonly string _deviceFile;
-    private readonly IGamepadMapping _mapping;
+    private readonly IGamepadSettings _settings;
     private readonly ILogger _logger;
 
-    public bool IsAvailable => File.Exists(_deviceFile);
-
-    public IDictionary<byte, GamepadInput<short>> Axes { get; init; }
-    public IDictionary<byte, GamepadInput<bool>> Buttons { get; init; }
-
-    public event EventHandler<GamepadInputEventArgs<bool>> ButtonChanged = delegate { };
-
-    public event EventHandler<GamepadInputEventArgs<short>> AxisChanged = delegate { };
-
-    public event EventHandler<GamepadAvailableEventArgs> AvailableChanged = delegate { };
-
-    public GamepadController(string deviceFile, IGamepadMapping mapping, ILogger<GamepadController> logger)
+    public GamepadController(IGamepadSettings settings, ILogger<GamepadController> logger)
     {
-        _deviceFile = deviceFile;
-        _mapping = mapping;
+        _settings = settings;
         _logger = logger;
-
-        Axes = new Dictionary<byte, GamepadInput<short>>();
-        Buttons = new Dictionary<byte, GamepadInput<bool>>();
     }
 
     public override Task StopAsync(CancellationToken cancellationToken = default)
@@ -41,16 +25,18 @@ public partial class GamepadController : BackgroundService, IGamepadController
         {
             try
             {
-                while (!IsAvailable && !cancellationToken.IsCancellationRequested)
+                while (!_settings.IsAvailable && !cancellationToken.IsCancellationRequested)
                 {
                     if (_logger.IsEnabled(LogLevel.Warning))
-                        _logger.LogWarning("Waiting for device at {deviceFile}.", _deviceFile);
-                    await Task.Delay(5000);
-                    if (IsAvailable)
-                        AvailableChanged?.Invoke(this, GamepadAvailableEventArgs.Yes);
+                        _logger.LogWarning("Waiting for device at {deviceFile}.", _settings.DeviceFile);
+                    
+                    _settings.ResetAxes();
+                    _settings.ResetButtons();
+
+                    await Task.Delay(1000);
                 }
 
-                using (FileStream fs = new FileStream(_deviceFile, FileMode.Open))
+                using (FileStream fs = new FileStream(_settings.DeviceFile, FileMode.Open))
                 {
                     byte[] message = new byte[8];
 
@@ -71,9 +57,7 @@ public partial class GamepadController : BackgroundService, IGamepadController
             catch (IOException)
             {
                 if (_logger.IsEnabled(LogLevel.Error))
-                    _logger.LogError("Device at {deviceFile} disconnected.", _deviceFile);
-                
-                AvailableChanged?.Invoke(this, GamepadAvailableEventArgs.No);
+                    _logger.LogError("Failed to read Device at {deviceFile}.", _settings.DeviceFile);
             }
         }
     }
@@ -84,26 +68,26 @@ public partial class GamepadController : BackgroundService, IGamepadController
 
         if (message.IsButton())
         {
-            if (!Buttons.ContainsKey(key))
+            if (_settings.HasButton(key) && _logger.IsEnabled(LogLevel.Information))
             {
-                var button = key.ToButtonInput(_mapping);
-                Buttons.Add(key, button);
-
-                if(_logger.IsEnabled(LogLevel.Information))
-                    _logger.LogInformation("Adding Button {key} with Name {name}. Value = {value}.", 
-                        key, button.Name, button.Value);
+                _logger.LogInformation("Button {key} with Name {name} is Available. Value = {value}.", 
+                    key, _settings.GetButtonName(key), _settings.GetButton(key));
+            }
+            else if (!_settings.HasButton(key))
+            {
+                _settings.AddButton(key, new GamepadButtonInput { Name = GamepadSettings.Default_Name, Value = false });
             }
         }
         else if (message.IsAxis())
         {
-            if (!Axes.ContainsKey(key))
+            if (_settings.HasAxis(key) && _logger.IsEnabled(LogLevel.Information))
             {
-                var axis = key.ToAxisInput(_mapping);
-                Axes.Add(key, axis);
-
-                if(_logger.IsEnabled(LogLevel.Information))
-                    _logger.LogInformation("Adding Axis {key} with Name {name}. Value = {value}.", 
-                        key, axis.Name, axis.Value);
+                _logger.LogInformation("Axis {key} with Name {name} is Available. Value = {value}.", 
+                    key, _settings.GetAxisName(key), _settings.GetAxis(key));
+            }
+            else if (!_settings.HasAxis(key))
+            {
+                _settings.AddAxis(key, new GamepadAxisInput { Name = GamepadSettings.Default_Name, Value = 0 });
             }
         }
     }
@@ -113,36 +97,8 @@ public partial class GamepadController : BackgroundService, IGamepadController
         byte address = message.GetAddress();
 
         if (message.IsButton())
-        {
-            var button = Buttons[address];
-            var oldValue = button.Value;
-            var newValue = message.IsButtonPressed();
-
-            if (button.Enabled && oldValue != newValue)
-            {
-                if(_logger.IsEnabled(LogLevel.Information))
-                    _logger.LogInformation("Button {name} value changed from {oldValue} to {newValue}.", button.Name, oldValue, newValue);
-
-                button.Value = newValue;
-                Buttons[address] = button;
-                ButtonChanged?.Invoke(this, button.ToEventArgs(address));
-            }
-        }
+            _settings.SetButton(address, message.IsButtonPressed());
         else if (message.IsAxis())
-        {
-            var axis = Axes[address];
-            var oldValue = axis.Value;
-            var newValue = message.GetAxisValue();
-
-            if (axis.Enabled && oldValue != newValue)
-            {
-                if(_logger.IsEnabled(LogLevel.Information))
-                    _logger.LogInformation("Axis {name} value changed from {oldValue} to {newValue}.", axis.Name, oldValue, newValue);
-
-                axis.Value = newValue;
-                Axes[address] = axis;
-                AxisChanged?.Invoke(this, axis.ToEventArgs(address));
-            }
-        }
+            _settings.SetAxis(address, message.GetAxisValue());
     }
 }

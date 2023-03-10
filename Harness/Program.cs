@@ -1,5 +1,6 @@
 ﻿using System.Device.Gpio;
 using CutilloRigby.Input.Gamepad;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -20,88 +21,122 @@ class Program
             .ConfigureLogging(builder => 
                 builder.AddConsole()
             )
-            .ConfigureServices(services =>
+            .ConfigureHostConfiguration(configurationBuilder => {
+                configurationBuilder
+                    .AddJsonFile("./appsettings.json");
+            })
+            .ConfigureServices((hostBuilder, services) =>
             {
-                services.AddGamepadController("/dev/input/js0", new _8BitDoUltimateMapping());
+                var gamepadSettingsSection = hostBuilder.Configuration.GetSection("GamepadSettings");
+                var gamepadSettingsConfiguration = gamepadSettingsSection.Get<GamepadSettingsConfiguration>(options => options.ErrorOnUnknownConfiguration = true);
+
+                services.AddSingleton<IGamepadSettings>(provider =>
+                {
+                    var logger = provider.GetRequiredService<ILogger<GamepadSettings>>();
+                    return gamepadSettingsConfiguration.ToGamepadSettings(logger);
+                });
+
+                services.AddGamepadController();
 
                 services.AddSingleton<GpioController>();
                 services.AddSingleton<RCCarHat>();
             })
             .Build();
 
-        var gamepad = host.Services.GetRequiredService<GamepadController>();
-        var rcCarHat = host.Services.GetRequiredService<RCCarHat>();
 
         var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
         lifetime.ApplicationStopping.Register(async () => await host.StopAsync());
 
+        var gamepadSettings = host.Services.GetRequiredService<IGamepadSettings>();
+
+        Setup(host);
+
+        await host.StartAsync(lifetime.ApplicationStopping);
+        await host.WaitForShutdownAsync(lifetime.ApplicationStopped);
+
+        Stop(host);
+    }
+
+    private static short MuxLTandRT(short LT, short RT)
+    {
+        return (short)((RT - LT) / 2);
+    }
+
+    private static void Setup(IHost? host)
+    {
+        if (host == null)
+            return;
+
+        var gamepadSettings = host.Services.GetRequiredService<IGamepadSettings>();
+        var rcCarHat = host.Services.GetRequiredService<RCCarHat>();
+
         var braking = BrakingState.None;
 
         // Configure this if you want to get events when the state of a button changes
-        gamepad.ButtonChanged += async (object? sender, GamepadInputEventArgs<bool> e) =>
+        gamepadSettings.ButtonChanged += async (object? sender, GamepadButtonInputEventArgs e) =>
         {
             rcCarHat.SetBlueLed(true);
-
+        
             if (e.Address == 3 && !e.Value && braking == BrakingState.Braking)
             {
                 rcCarHat.SetDrive(0);
                 await Task.Delay(800);
-                braking = BrakingState.Broke;
+                braking = BrakingState.None;
                 rcCarHat.SetGreenLed(false);
-                rcCarHat.SetDrive(MuxLTandRT(gamepad.Axes[5].Value, gamepad.Axes[4].Value));
+                rcCarHat.SetDrive(MuxLTandRT(gamepadSettings.GetAxis(5), gamepadSettings.GetAxis(4)));
             }
             else if (e.Address == 3 && e.Value)
             {
                 braking = BrakingState.Braking;
-
+        
                 rcCarHat.SetGreenLed(true);
-
-                if(MuxLTandRT(gamepad.Axes[5].Value, gamepad.Axes[4].Value) > TBLE01_Deadband_Upper)
+        
+                if(MuxLTandRT(gamepadSettings.GetAxis(5), gamepadSettings.GetAxis(4)) > TBLE01_Deadband_Upper)
                     rcCarHat.SetDrive(short.MinValue);
                 else
                     rcCarHat.SetDrive(0);
             }
             else
                 Console.WriteLine($"Button {e.Name} ({e.Address}) Changed: {e.Value}");
-
+        
             rcCarHat.SetBlueLed(false);
         };
         // Configure this if you want to get events when the state of an axis changes
-        gamepad.AxisChanged += async (object? sender, GamepadInputEventArgs<short> e) =>
+        gamepadSettings.AxisChanged += async (object? sender, GamepadAxisInputEventArgs e) =>
         {
             rcCarHat.SetBlueLed(true);
-
+        
             if (e.Address == 0)
                 rcCarHat.SetSteering(e.Value);
             else if ((e.Address == 4 || e.Address == 5) && braking != BrakingState.Braking)
             {
-                var driveVal = MuxLTandRT(gamepad.Axes[5].Value, gamepad.Axes[4].Value);
-
+                var driveVal = MuxLTandRT(gamepadSettings.GetAxis(5), gamepadSettings.GetAxis(4));
+        
                 if (driveVal < TBLE01_Deadband_Lower && braking == BrakingState.None)
                 {
                     braking = BrakingState.Braking;
                     rcCarHat.SetGreenLed(true);
-
+        
                     rcCarHat.SetDrive(short.MinValue);
                     await Task.Delay(200);
-
+        
                     rcCarHat.SetDrive(0);
                     await Task.Delay(800);
-
+        
                     rcCarHat.SetGreenLed(false);
                     braking = BrakingState.Broke;
                 }
                 else if (driveVal > TBLE01_Deadband_Upper)
                     braking = BrakingState.None;
-
-                rcCarHat.SetDrive(MuxLTandRT(gamepad.Axes[5].Value, gamepad.Axes[4].Value));
+        
+                rcCarHat.SetDrive(MuxLTandRT(gamepadSettings.GetAxis(5), gamepadSettings.GetAxis(4)));
             }
             else
                 Console.WriteLine($"Axis {e.Name} ({e.Address}) Changed: {e.Value}");
-
+        
             rcCarHat.SetBlueLed(false);
         };
-        gamepad.AvailableChanged += (object? sender, GamepadAvailableEventArgs e) =>
+        gamepadSettings.AvailableChanged += (object? sender, GamepadAvailableEventArgs e) =>
         {
             rcCarHat.SetRedLed(!e.Value);
             rcCarHat.SetDrive(0);
@@ -115,21 +150,21 @@ class Program
                 rcCarHat.SetGreenLed(false);
         };
 
-        rcCarHat.SetRedLed(!gamepad.IsAvailable);
+        rcCarHat.SetRedLed(!gamepadSettings.IsAvailable);
         rcCarHat.SetDrive(0);
         rcCarHat.SetSteering(0);
-        
-        await host.StartAsync(lifetime.ApplicationStopping);
-        await host.WaitForShutdownAsync(lifetime.ApplicationStopped);
+    }
+
+    private static void Stop(IHost? host)
+    {
+        if (host == null)
+            return;
+
+        var rcCarHat = host.Services.GetRequiredService<RCCarHat>();
 
         rcCarHat.SetRedLed(false);
         rcCarHat.SetGreenLed(false);
         rcCarHat.SetBlueLed(false);
-    }
-
-    private static short MuxLTandRT(short LT, short RT)
-    {
-        return (short)((RT - LT) / 2);
     }
 
     private const double TBLE01_Deadband_Lower = -1000; // Although 4% of 32768 is 1310
