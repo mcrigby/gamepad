@@ -35,6 +35,13 @@ class Program
                     var logger = provider.GetRequiredService<ILogger<GamepadSettings>>();
                     return gamepadSettingsConfiguration.ToGamepadSettings(logger);
                 });
+                services.AddSingleton<IGamepadInputChanged>(provider =>
+                {
+                    var iGamepadSettings = provider.GetRequiredService<IGamepadSettings>();
+                    if (iGamepadSettings is IGamepadInputChanged iGamepadInputChanged)
+                        return iGamepadInputChanged;
+                    throw new InvalidCastException("GamepadSettings is not an IGamepadInputChanged.");
+                });
 
                 services.AddGamepadController();
 
@@ -47,9 +54,7 @@ class Program
         var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
         lifetime.ApplicationStopping.Register(async () => await host.StopAsync());
 
-        var gamepadSettings = host.Services.GetRequiredService<IGamepadSettings>();
-
-        Setup(host);
+        Start(host);
 
         await host.StartAsync(lifetime.ApplicationStopping);
         await host.WaitForShutdownAsync(lifetime.ApplicationStopped);
@@ -62,18 +67,19 @@ class Program
         return (short)((RT - LT) / 2);
     }
 
-    private static void Setup(IHost? host)
+    private static void Start(IHost? host)
     {
         if (host == null)
             return;
 
         var gamepadSettings = host.Services.GetRequiredService<IGamepadSettings>();
+        var gamepadInputChanged = host.Services.GetRequiredService<IGamepadInputChanged>();
         var rcCarHat = host.Services.GetRequiredService<RCCarHat>();
 
         var braking = BrakingState.None;
 
         // Configure this if you want to get events when the state of a button changes
-        gamepadSettings.ButtonChanged += async (object? sender, GamepadButtonInputEventArgs e) =>
+        gamepadInputChanged.ButtonChanged += async (object? sender, GamepadButtonInputEventArgs e) =>
         {
             rcCarHat.SetBlueLed(true);
         
@@ -102,7 +108,7 @@ class Program
             rcCarHat.SetBlueLed(false);
         };
         // Configure this if you want to get events when the state of an axis changes
-        gamepadSettings.AxisChanged += async (object? sender, GamepadAxisInputEventArgs e) =>
+        gamepadInputChanged.AxisChanged += async (object? sender, GamepadAxisInputEventArgs e) =>
         {
             rcCarHat.SetBlueLed(true);
         
@@ -136,7 +142,7 @@ class Program
         
             rcCarHat.SetBlueLed(false);
         };
-        gamepadSettings.AvailableChanged += (object? sender, GamepadAvailableEventArgs e) =>
+        gamepadInputChanged.AvailableChanged += (object? sender, GamepadAvailableEventArgs e) =>
         {
             rcCarHat.SetRedLed(!e.Value);
             rcCarHat.SetDrive(0);

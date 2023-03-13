@@ -73,9 +73,10 @@ public partial class GamepadController : BackgroundService
                 _logger.LogInformation("Button {key} with Name {name} is Available. Value = {value}.", 
                     key, _settings.GetButtonName(key), _settings.GetButton(key));
             }
-            else if (!_settings.HasButton(key))
+            else if (!_settings.HasButton(key) && _logger.IsEnabled(LogLevel.Warning))
             {
-                _settings.AddButton(key, new GamepadButtonInput { Name = GamepadSettings.Default_Name, Value = false });
+                _logger.LogWarning("Button {key} is Available but not handled in Gamepad Settings.", 
+                    key);
             }
         }
         else if (message.IsAxis())
@@ -85,9 +86,10 @@ public partial class GamepadController : BackgroundService
                 _logger.LogInformation("Axis {key} with Name {name} is Available. Value = {value}.", 
                     key, _settings.GetAxisName(key), _settings.GetAxis(key));
             }
-            else if (!_settings.HasAxis(key))
+            else if (!_settings.HasAxis(key) && _logger.IsEnabled(LogLevel.Warning))
             {
-                _settings.AddAxis(key, new GamepadAxisInput { Name = GamepadSettings.Default_Name, Value = 0 });
+                _logger.LogWarning("Axis {key} is Available but not handled in Gamepad Settings.", 
+                    key);
             }
         }
     }

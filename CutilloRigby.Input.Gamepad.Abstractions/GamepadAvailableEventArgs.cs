@@ -1,6 +1,6 @@
 namespace CutilloRigby.Input.Gamepad;
 
-public class GamepadAvailableEventArgs
+public sealed class GamepadAvailableEventArgs
 {
     public bool Value { get; set; }
 

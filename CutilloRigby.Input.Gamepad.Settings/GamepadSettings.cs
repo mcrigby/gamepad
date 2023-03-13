@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 
 namespace CutilloRigby.Input.Gamepad;
 
-public sealed class GamepadSettings : IGamepadSettings
+public sealed class GamepadSettings : IGamepadSettings, IGamepadInputChanged
 {
     private readonly FileSystemWatcher _deviceFileWatcher;
     private readonly ILogger _logger;
@@ -104,8 +104,7 @@ public sealed class GamepadSettings : IGamepadSettings
             axis.Value = value;
             Axes[address] = axis;
 
-            if (Axes[address].NotifyChanged)
-                AxisChanged?.Invoke(this, Axes[address].ToEventArgs(address));
+            AxisChanged?.Invoke(this, Axes[address].ToEventArgs(address));
         }
     }
 
@@ -125,8 +124,7 @@ public sealed class GamepadSettings : IGamepadSettings
             button.Value = value;
             Buttons[address] = button;
 
-            if (Buttons[address].NotifyChanged)
-                ButtonChanged?.Invoke(this, Buttons[address].ToEventArgs(address));
+            ButtonChanged?.Invoke(this, Buttons[address].ToEventArgs(address));
         }
     }
 
@@ -151,7 +149,7 @@ public sealed class GamepadSettings : IGamepadSettings
         if (!Axes.ContainsKey(address))
             return Default_Name;
 
-        return Axes[address].Name;
+        return Axes[address]?.Name ?? Default_Name;
     }
 
     public string GetButtonName(byte address)
@@ -159,7 +157,7 @@ public sealed class GamepadSettings : IGamepadSettings
         if (!Buttons.ContainsKey(address))
             return Default_Name;
 
-        return Buttons[address].Name;
+        return Buttons[address]?.Name ?? Default_Name;
     }
 
     public void ResetAxes()

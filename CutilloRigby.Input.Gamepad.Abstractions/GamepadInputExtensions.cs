@@ -1,6 +1,6 @@
 namespace CutilloRigby.Input.Gamepad;
 
-internal static class GamepadInputExtensions
+public static class GamepadInputExtensions
 {
     public static GamepadButtonInputEventArgs ToEventArgs(this GamepadButtonInput input, byte address)
     {

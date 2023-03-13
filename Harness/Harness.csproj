@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CutilloRigby.Input.Gamepad\CutilloRigby.Input.Gamepad.csproj" />
+    <ProjectReference Include="..\CutilloRigby.Input.Gamepad.Settings\CutilloRigby.Input.Gamepad.Settings.csproj" />
   </ItemGroup>
 
   <ItemGroup>
