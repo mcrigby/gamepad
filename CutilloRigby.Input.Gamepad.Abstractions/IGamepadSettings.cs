@@ -4,7 +4,6 @@ public interface IGamepadSettings
 {
     public string Name { get; set; }
     public string DeviceFile { get; set; }
-    bool IsAvailable { get; }
 
     bool HasAxis(byte address);
     bool HasButton(byte address);

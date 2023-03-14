@@ -7,6 +7,9 @@ public static class GamepadControllerDIExtensions
     public static IServiceCollection AddGamepadController(this IServiceCollection services)
     {
         services.AddSingleton<GamepadController>();
+        services.AddSingleton<IGamepadAvailable>(provider =>
+            provider.GetRequiredService<GamepadController>()
+        );
         services.AddHostedService<GamepadController>(provider =>
             provider.GetRequiredService<GamepadController>()
         );
