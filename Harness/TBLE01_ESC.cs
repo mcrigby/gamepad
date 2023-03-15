@@ -79,7 +79,7 @@ internal sealed class TBLE01_ESC : BackgroundService
                 lastDrive = currentDrive;
             }
 
-            await Task.Delay(10);
+            await Task.Delay(1);
         }
 
         _drivePwm.DutyCycle = ServoMap.Value[0];

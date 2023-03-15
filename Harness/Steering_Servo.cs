@@ -49,7 +49,7 @@ internal sealed class Steering_Servo : BackgroundService
                 lastSteering = currentSteering;
             }
 
-            await Task.Delay(10);
+            await Task.Delay(1);
         }
 
         _steeringPwm.DutyCycle = ServoMap.Value[0];

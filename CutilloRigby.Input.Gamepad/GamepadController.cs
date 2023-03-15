@@ -6,7 +6,6 @@ namespace CutilloRigby.Input.Gamepad;
 public partial class GamepadController : BackgroundService, IGamepadAvailable
 {
     private readonly IGamepadSettings _settings;
-    private readonly ILogger _logger;
 
     private readonly FileSystemWatcher _deviceFileWatcher;
 
@@ -14,8 +13,8 @@ public partial class GamepadController : BackgroundService, IGamepadAvailable
 
     public GamepadController(IGamepadSettings settings, ILogger<GamepadController> logger)
     {
-        _settings = settings;
-        _logger = logger;
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        CreateLogHandlers(logger ?? throw new ArgumentNullException(nameof(logger)));
 
         var deviceFile = new FileInfo(_settings.DeviceFile);
 
@@ -27,8 +26,6 @@ public partial class GamepadController : BackgroundService, IGamepadAvailable
         _deviceFileWatcher.EnableRaisingEvents = true;
 
         AvailableChanged += delegate { };
-
-        CreateLogHandlers();
     }
 
     public bool IsAvailable 
@@ -68,21 +65,23 @@ public partial class GamepadController : BackgroundService, IGamepadAvailable
 
                 using (FileStream fs = new FileStream(_settings.DeviceFile, FileMode.Open))
                 {
-                    byte[] message = new byte[8];
+                    const int len = 8;
+                    byte[] message = new byte[len];
 
                     while (!cancellationToken.IsCancellationRequested)
                     {
                         // Read chunks of 8 bytes at a time.
-                        await fs.ReadAsync(message, 0, 8, cancellationToken); // To Do: Check if still blocking
-
-                        if (message.HasConfiguration())
+                        if (len == await fs.ReadAsync(message, 0, len, cancellationToken)) // To Do: Check if still blocking
                         {
-                            ProcessConfiguration(message);
+                            if (message.HasConfiguration())
+                            {
+                                ProcessConfiguration(message);
+                            }
+
+                            ProcessValues(message);
+
+                            await Task.Delay(1); // Seems to need this to switch between hosted services.
                         }
-
-                        ProcessValues(message);
-
-                        await Task.Delay(10); // Seems to need this to switch between hosted services.
                     }
                 }
             }
@@ -100,14 +99,16 @@ public partial class GamepadController : BackgroundService, IGamepadAvailable
         if (message.IsButton())
         {
             if (_settings.HasButton(address))
-                _configurationInformation_Available("Button", address, _settings.GetButtonName(address), _settings.GetButton(address));
+                _configurationInformation_Available("Button", address, 
+                    _settings.GetButtonName(address), _settings.GetButton(address));
             else
                 _configurationWarning_NotHandled("Button", address);
         }
         else if (message.IsAxis())
         {
             if (_settings.HasAxis(address))
-                _configurationInformation_Available("Axis", address, _settings.GetAxisName(address), _settings.GetAxis(address));
+                _configurationInformation_Available("Axis", address, 
+                    _settings.GetAxisName(address), _settings.GetAxis(address));
             else
                 _configurationWarning_NotHandled("Axis", address);
         }
@@ -123,27 +124,27 @@ public partial class GamepadController : BackgroundService, IGamepadAvailable
             _settings.SetAxis(address, message.GetAxisValue());
     }
 
-    private void CreateLogHandlers()
+    private void CreateLogHandlers(ILogger logger)
     {
-        if (_logger.IsEnabled(LogLevel.Information))
+        if (logger.IsEnabled(LogLevel.Information))
         {
             _configurationInformation_Available = (type, address, buttonName, value) =>
-                _logger.LogInformation(type + " {key} with Name {name} is Available. Value = {value}.", address, buttonName, value);
+                logger.LogInformation(type + " {key} with Name {name} is Available. Value = {value}.", address, buttonName, value);
         }
 
-        if (_logger.IsEnabled(LogLevel.Warning))
+        if (logger.IsEnabled(LogLevel.Warning))
         {
             _configurationWarning_NotHandled = (type, address) =>
-                _logger.LogWarning(type + " {key} is Available but not handled in Gamepad Settings.", address);
+                logger.LogWarning(type + " {key} is Available but not handled in Gamepad Settings.", address);
 
             _executeWarning_WaitingForDeviceFile = () => 
-                _logger.LogWarning("Waiting for device at {deviceFile}.", _settings.DeviceFile);;
+                logger.LogWarning("Waiting for device at {deviceFile}.", _settings.DeviceFile);;
         }
 
-        if (_logger.IsEnabled(LogLevel.Error))
+        if (logger.IsEnabled(LogLevel.Error))
         {
             _executeError_FailedToReadFromDeviceFile = () =>
-                _logger.LogError("Failed to read Device at {deviceFile}.", _settings.DeviceFile);
+                logger.LogError("Failed to read Device at {deviceFile}.", _settings.DeviceFile);
         }
     }
 
