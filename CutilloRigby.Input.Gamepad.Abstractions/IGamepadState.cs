@@ -1,6 +1,6 @@
 namespace CutilloRigby.Input.Gamepad;
 
-public interface IGamepadSettings
+public interface IGamepadState
 {
     public string Name { get; set; }
     public string DeviceFile { get; set; }

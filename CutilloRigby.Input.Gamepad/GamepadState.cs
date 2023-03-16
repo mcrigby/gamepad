@@ -1,22 +1,17 @@
-using CutilloRigby.Input.Gamepad;
 using Microsoft.Extensions.Logging;
 
-namespace Harness;
+namespace CutilloRigby.Input.Gamepad;
 
-public sealed class GamepadSettings : IGamepadSettings, IGamepadInputChanged, IServoSettings
+public sealed class GamepadState : IGamepadState, IGamepadInputChanged
 {
-    private readonly ILogger _logger;
-
-    public GamepadSettings(ILogger<GamepadSettings> logger)
+    public GamepadState(ILogger<GamepadState> logger)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof (logger));
+        SetLogHandlers(logger ?? throw new ArgumentNullException(nameof(logger)));
 
         Name = Default_Name;
         DeviceFile = Default_DeviceFile;
         Axes = new Dictionary<byte, GamepadAxisInput>();
         Buttons = new Dictionary<byte, GamepadButtonInput>();
-
-        SetLogHandlers();
     }
 
     public string Name { get; set; }
@@ -187,12 +182,12 @@ public sealed class GamepadSettings : IGamepadSettings, IGamepadInputChanged, IS
         };
     }
 
-    private void SetLogHandlers()
+    private void SetLogHandlers(ILogger logger)
     {
-        if (_logger.IsEnabled(LogLevel.Information))
+        if (logger.IsEnabled(LogLevel.Information))
         {
             setInformation_ValueChanged = (type, name, oldValue, newValue) => 
-                _logger.LogInformation(type + " {name} value changed from {oldValue} to {newValue}.", 
+                logger.LogInformation(type + " {name} value changed from {oldValue} to {newValue}.", 
                         name, oldValue, newValue);;
         }
     }

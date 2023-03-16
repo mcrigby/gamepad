@@ -29,21 +29,13 @@ class Program
                 var gamepadSettingsSection = hostBuilder.Configuration.GetSection("GamepadSettings");
                 var gamepadSettingsConfiguration = gamepadSettingsSection.Get<GamepadSettingsConfiguration>(options => options.ErrorOnUnknownConfiguration = true);
 
-                services.AddSingleton<GamepadSettings>(provider =>
-                {
-                    var logger = provider.GetRequiredService<ILogger<GamepadSettings>>();
-                    return gamepadSettingsConfiguration.ToGamepadSettings(logger);
-                });
-                services.AddSingleton<IGamepadInputChanged>(provider =>
-                    provider.GetRequiredService<GamepadSettings>()
-                );
-                services.AddSingleton<IGamepadSettings>(provider =>
-                    provider.GetRequiredService<GamepadSettings>()
-                );
-                services.AddSingleton<IServoSettings>(provider =>
-                    provider.GetRequiredService<GamepadSettings>()
-                );
+                //services.AddSingleton<IServoSettings>(provider =>
+                //    provider.GetRequiredService<GamepadState>()
+                //);
 
+                services.AddGamepadState(gamepadSettingsConfiguration.Name, gamepadSettingsConfiguration.DeviceFile,
+                    gamepadSettingsConfiguration.Axes, gamepadSettingsConfiguration.Buttons);
+                    
                 services.AddGamepadController();
 
                 services.AddSingleton<GpioController>();

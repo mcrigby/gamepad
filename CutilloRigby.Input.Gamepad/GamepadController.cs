@@ -5,13 +5,13 @@ namespace CutilloRigby.Input.Gamepad;
 
 public partial class GamepadController : BackgroundService, IGamepadAvailable
 {
-    private readonly IGamepadSettings _settings;
+    private readonly IGamepadState _settings;
 
     private readonly FileSystemWatcher _deviceFileWatcher;
 
     private bool _isAvailable = false;
 
-    public GamepadController(IGamepadSettings settings, ILogger<GamepadController> logger)
+    public GamepadController(IGamepadState settings, ILogger<GamepadController> logger)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         CreateLogHandlers(logger ?? throw new ArgumentNullException(nameof(logger)));
