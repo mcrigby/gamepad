@@ -62,5 +62,14 @@ class Program
         // Configure this if you want to get events when the state of an axis changes
         gamepadInputChanged.AxisChanged += (s, e) =>
             Console.WriteLine($"Axis {e.Name} ({e.Address}) Changed: {e.Value}");
+
+        // Do something else at the same time, to check gamepad isn't blocking
+        Task.Run(() => {
+            for (var i = 0; i < int.MaxValue; i++)
+            {
+                Console.WriteLine(i);
+                Thread.Sleep(100);
+            }
+        });
     }
 }

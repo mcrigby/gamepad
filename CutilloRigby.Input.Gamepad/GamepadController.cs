@@ -63,25 +63,23 @@ public partial class GamepadController : BackgroundService, IGamepadAvailable
                     await Task.Delay(1000);
                 }
 
-                using (FileStream fs = new FileStream(_settings.DeviceFile, FileMode.Open))
+                using var fs = new FileStream(_settings.DeviceFile, FileMode.Open, FileAccess.Read, 
+                    FileShare.ReadWrite | FileShare.Delete);
+
+                const int len = 8;
+                byte[] message = new byte[len];
+
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    const int len = 8;
-                    byte[] message = new byte[len];
-
-                    while (!cancellationToken.IsCancellationRequested)
+                    // Read chunks of 8 bytes at a time.
+                    if (len == await fs.ReadWithCancellationAsync(message, 0, len, cancellationToken))
                     {
-                        // Read chunks of 8 bytes at a time.
-                        if (len == await fs.ReadAsync(message, 0, len, cancellationToken)) // To Do: Check if still blocking
+                        if (message.HasConfiguration())
                         {
-                            if (message.HasConfiguration())
-                            {
-                                ProcessConfiguration(message);
-                            }
-
-                            ProcessValues(message);
-
-                            await Task.Delay(1); // Seems to need this to switch between hosted services.
+                            ProcessConfiguration(message);
                         }
+
+                        ProcessValues(message);
                     }
                 }
             }
@@ -130,6 +128,8 @@ public partial class GamepadController : BackgroundService, IGamepadAvailable
         {
             _configurationInformation_Available = (type, address, buttonName, value) =>
                 logger.LogInformation(type + " {key} with Name {name} is Available. Value = {value}.", address, buttonName, value);
+            _streamInformation_Close = () =>
+                logger.LogInformation("File {deviceFile} closed due to Cancellation Request.", _settings.DeviceFile);
         }
 
         if (logger.IsEnabled(LogLevel.Warning))
@@ -148,6 +148,7 @@ public partial class GamepadController : BackgroundService, IGamepadAvailable
         }
     }
 
+    private Action _streamInformation_Close = () => { };
     private Action<string, byte, string, object> _configurationInformation_Available = (type, address, buttonName, value) => { };
     private Action<string, byte> _configurationWarning_NotHandled = (type, address) => { };
     private Action _executeWarning_WaitingForDeviceFile = () => { };
