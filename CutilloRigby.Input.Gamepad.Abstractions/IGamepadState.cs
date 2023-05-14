@@ -5,6 +5,8 @@ public interface IGamepadState
     public string Name { get; set; }
     public string DeviceFile { get; set; }
 
+    bool IsIdle();
+
     bool HasAxis(byte address);
     bool HasButton(byte address);
 

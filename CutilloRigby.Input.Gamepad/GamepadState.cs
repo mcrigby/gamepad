@@ -26,6 +26,12 @@ public sealed class GamepadState : IGamepadState, IGamepadInputChanged
     public event EventHandler<GamepadButtonInputEventArgs> ButtonChanged = delegate { };
     public event EventHandler<GamepadAxisInputEventArgs> AxisChanged = delegate { };
 
+    public bool IsIdle()
+    {
+        return Axes.Values.All(x => x.Value == x.DefaultValue)
+            && Buttons.Values.All(x => x.Value == x.DefaultValue);
+    }
+
     public bool HasAxis(byte address)
     {
         lock (Axes)
