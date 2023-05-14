@@ -69,10 +69,15 @@ public partial class GamepadController : BackgroundService, IGamepadAvailable
                 const int len = 8;
                 byte[] message = new byte[len];
 
-                while (!cancellationToken.IsCancellationRequested)
+                while (IsAvailable && !cancellationToken.IsCancellationRequested)
                 {
                     // Read chunks of 8 bytes at a time.
-                    if (len == await fs.ReadWithCancellationAsync(message, 0, len, cancellationToken))
+                    if (len == await fs.ReadWithCancellationAsync(message, 0, len, cancellationToken, ex => {
+                        if (ex is IOException)
+                            _executeError_FailedToReadFromDeviceFile();
+                        else
+                            error_LogReadException(ex);
+                    }))
                     {
                         if (message.HasConfiguration())
                         {
@@ -145,6 +150,9 @@ public partial class GamepadController : BackgroundService, IGamepadAvailable
         {
             _executeError_FailedToReadFromDeviceFile = () =>
                 logger.LogError("Failed to read Device at {deviceFile}.", _settings.DeviceFile);
+
+            error_LogReadException = (ex) =>
+                logger.LogError(ex, "Error reading from Gamepad file.");
         }
     }
 
@@ -153,4 +161,5 @@ public partial class GamepadController : BackgroundService, IGamepadAvailable
     private Action<string, byte> _configurationWarning_NotHandled = (type, address) => { };
     private Action _executeWarning_WaitingForDeviceFile = () => { };
     private Action _executeError_FailedToReadFromDeviceFile = () => { };
+    private Action<Exception> error_LogReadException = (ex) => { };
 }

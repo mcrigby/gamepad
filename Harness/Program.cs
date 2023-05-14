@@ -68,7 +68,7 @@ class Program
             for (var i = 0; i < int.MaxValue; i++)
             {
                 Console.WriteLine(i);
-                Thread.Sleep(100);
+                Thread.Sleep(1000);
             }
         });
     }
