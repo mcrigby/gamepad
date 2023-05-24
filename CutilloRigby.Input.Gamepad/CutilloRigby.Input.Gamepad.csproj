@@ -21,14 +21,13 @@
 
   <ItemGroup>
     <PackageReference Include="CutilloRigby.Extensions.Task" Version="1.0.3" /> 
-    <PackageReference Include="CutilloRigby.Input.Gamepad.Abstractions" Version="1.0.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
   </ItemGroup>
 
-  <!-- <ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\CutilloRigby.Input.Gamepad.Abstractions\CutilloRigby.Input.Gamepad.Abstractions.csproj" />
-  </ItemGroup> -->
+  </ItemGroup>
 
 </Project>
